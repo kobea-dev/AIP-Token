@@ -2,7 +2,6 @@
 pragma solidity 0.4.25;
 
 contract ERC20Basic {
-    function totalSupply() public view returns (uint256);
     function balanceOf(address who) public view returns (uint256);
     function transfer(address  to, uint256 value) public returns (bool);
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -30,8 +29,8 @@ contract DetailedERC20 is ERC20 {
 contract BasicToken is ERC20Basic {
     using SafeMath for uint256;
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    mapping(address => uint256) public balances;
-    uint256 public _totalSupply;
+    mapping(address => uint256)  balances;
+    uint256  _totalSupply;
     
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
@@ -55,7 +54,7 @@ contract BasicToken is ERC20Basic {
 contract ERC20Token is BasicToken, ERC20 {
     using SafeMath for uint256;
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    mapping (address => mapping (address => uint256)) public allowed;
+    mapping (address => mapping (address => uint256))  allowed;
     mapping (address => uint256) public freezeOf;
 
     function approve(address _spender, uint256 _value) public returns (bool) {
@@ -191,12 +190,7 @@ contract BurnableToken is BasicToken, Ownable {
         emit Transfer(msg.sender, address(0), _value);
     }
 
-    function burnAddress(address _from, uint256 _value) onlyOwner public {
-        balances[_from] = balances[_from].sub(_value);
-        _totalSupply = _totalSupply.sub(_value);
-        emit Burn(_from, _value);
-        emit Transfer(_from, address(0), _value);
-    }
+  
 }
 
 
@@ -228,33 +222,27 @@ contract AsiaInfluencerPlatform is BurnableToken,FreezeToken, DetailedERC20, ERC
     
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event LockerChanged(address indexed owner, uint256 amount);
-    event Recall(address indexed owner, uint256 amount);
-    event TimeLockerChanged(address indexed owner, uint256 time, uint256 amount);
-    event TimeLockerChangedTime(address indexed owner, uint256 time);
-    event TimeLockerChangedBalance(address indexed owner, uint256 amount);
+    mapping(address => uint) locker;
     
-    mapping(address => uint) public locker;
-    mapping(address => uint) public time;
-    mapping(address => uint) public timeLocker;
-    mapping(address => uint) public unLockAmount;
+    string  private _symbol = "AIP";
+    string  private _name = "Asia Influencer Platform";
+    uint8  private _decimals = 18;
+    uint256 private TOTAL_SUPPLY = 40*(10**8)*(10**uint256(_decimals));
     
-    string public s_symbol = "AIP";
-    string public s_name = "Asia Influencer Platform";
-    uint8 public s_decimals = 18;
-    uint256 public TOTAL_SUPPLY = 40*(10**8)*(10**uint256(s_decimals));
-    
-    constructor() DetailedERC20(s_name, s_symbol, s_decimals) public {
+    constructor() DetailedERC20(_name, _symbol, _decimals) public {
         _totalSupply = TOTAL_SUPPLY;
         balances[owner] = _totalSupply;
         emit Transfer(address(0x0), msg.sender, _totalSupply);
     }
     
     function transfer(address _to, uint256 _value)  public whenNotPaused returns (bool){
-        require(balances[msg.sender].sub(_value) >= locker[msg.sender].add(timeLocker[msg.sender]),"Attempting to send more than the locked number");
+        require(balances[msg.sender].sub(_value) >= locker[msg.sender],"Attempting to send more than the locked number");
         return super.transfer(_to, _value);
     }
     
     function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool){
+        require(balances[msg.sender].sub(_value) >= locker[msg.sender],"Attempting to send more than the locked number" );
+		
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
         allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
@@ -273,30 +261,18 @@ contract AsiaInfluencerPlatform is BurnableToken,FreezeToken, DetailedERC20, ERC
         locker[_address] = _value;
         emit LockerChanged(_address, _value);
     }
-    
-    function setUnLock(address _address, uint256 _value) public onlyOwnerOrAdmin {
-        require(_value <= _totalSupply &&_address != address(0),"It is the first wallet or attempted to lock an amount greater than the total holding.");
-        locker[_address] = locker[_address].sub(_value);
-        emit LockerChanged(_address, _value);
+    function setLockList(address[] _recipients, uint256[] _balances) public onlyOwnerOrAdmin{
+        require(_recipients.length == _balances.length,"The number of wallet arrangements and the number of amounts are different.");
+        
+        for (uint i=0; i < _recipients.length; i++) {
+            require(_recipients[i] != address(0),'Please check the address');
+            
+            locker[_recipients[i]] = _balances[i];
+            emit LockerChanged(_recipients[i], _balances[i]);
+        }
     }
     
-    function recall(address _from, uint256 _amount) public onlyOwnerOrAdmin {
-        require(_amount != 0 ,"The number you want to retrieve is not zero, it must be greater than zero.");
-        uint256 currentLocker = locker[_from];
-        uint256 currentBalance = balances[_from];
-        require(currentLocker >= _amount && currentBalance >= _amount,"The number you wish to collect must be greater than the holding amount and greater than the locked number.");
-        
-        uint256 newLock = currentLocker.sub(_amount);
-        locker[_from] = newLock;
-        emit LockerChanged(_from, newLock);
-        
-        balances[_from] = balances[_from].sub(_amount);
-        balances[owner] = balances[owner].add(_amount);
-        emit Transfer(_from, owner, _amount);
-        emit Recall(_from, _amount);
-        
-    }
-    
+  
     function transferList(address[] _recipients, uint256[] _balances) public onlyOwnerOrAdmin{
         require(_recipients.length == _balances.length,"The number of wallet arrangements and the number of amounts are different.");
         
@@ -307,100 +283,7 @@ contract AsiaInfluencerPlatform is BurnableToken,FreezeToken, DetailedERC20, ERC
         }
     }
     
-    function setLockList(address[] _recipients, uint256[] _balances) public onlyOwnerOrAdmin{
-        require(_recipients.length == _balances.length,"The number of wallet arrangements and the number of amounts are different.");
-        
-        for (uint i=0; i < _recipients.length; i++) {
-            locker[_recipients[i]] = _balances[i];
-            emit LockerChanged(_recipients[i], _balances[i]);
-        }
-    }
-    /**
-	* @dev timeLock 10% of the lock quantity is deducted from the customer's wallet every specific time.
-	* @param _address Lockable wallet
-	* @param _time The time the lock is released
-	* @param _value Number of locks
-	*/
  
-	
-    function timeLock(address _address,uint256 _time, uint256 _value) public onlyOwnerOrAdmin{
-        require(_address != address(0),"Same as the original wallet address.");
-        
-		// Divide by 10 to find the number to be subtracted.
-        uint256 unlockAmount = _value.div(10);
-        
-        time[_address] = _time;
-		
-		//Add the locked count.
-        timeLocker[_address] = timeLocker[_address].add(_value);
-		
-		//unLockAmount Adds the number to be released.
-        unLockAmount[_address] = unLockAmount[_address].add(unlockAmount);
-		
-        emit TimeLockerChanged(_address,_time,_value);
-    }
-    
-    function lockTimeOf(address _address) public view returns (uint256 _time) {
-        return time[_address];
-    }
-    
-    function lockTimeAmountOf(address _address) public view returns (uint256 _value) {
-        return unLockAmount[_address];
-    }
-    
-    function lockTimeBalanceOf(address _address) public view returns (uint256 _value) {
-        return timeLocker[_address];
-    }
-    
-    function untimeLock(address _address) public onlyOwnerOrAdmin{
-        require(_address != address(0),"Same as the original wallet address.");
-        
-        uint256 unlockAmount = unLockAmount[_address];
-        uint256 nextTime = block.timestamp + 30 days;
-        time[_address] = nextTime;
-        timeLocker[_address] = timeLocker[_address].sub(unlockAmount);
-        
-        emit TimeLockerChanged(_address,nextTime,unlockAmount);
-    }
-    
-    function timeLockList(address[] _recipients,uint256[] _time, uint256[] _value) public onlyOwnerOrAdmin{
-        require(_recipients.length == _value.length && _recipients.length == _time.length); 
-        
-        for (uint i=0; i < _recipients.length; i++) {
-            uint256 unlockAmount = _value[i].div(10);
-            time[_recipients[i]] = _time[i];
-            timeLocker[_recipients[i]] = timeLocker[_recipients[i]].add(_value[i]);
-            unLockAmount[_recipients[i]] = unLockAmount[_recipients[i]].add(unlockAmount);
-            emit TimeLockerChanged(_recipients[i],_time[i],_value[i]);    
-        }
-    }
-    
-    function unTimeLockList(address[] _recipients) public onlyOwnerOrAdmin{
-        
-        for (uint i=0; i < _recipients.length; i++) {
-            uint256 unlockAmount = unLockAmount[_recipients[i]];
-            uint256 nextTime = block.timestamp + 30 days;
-            time[_recipients[i]] = nextTime;
-            timeLocker[_recipients[i]] = timeLocker[_recipients[i]].sub(unlockAmount);
-            emit TimeLockerChanged(_recipients[i],nextTime,unlockAmount);
-        }
-    }
-    
-    function timeLockSetTime(address _address,uint256 _time) public onlyOwnerOrAdmin{
-        require(_address != address(0),"Same as the original wallet address.");
-        
-        time[_address] = _time;
-        emit TimeLockerChangedTime(_address,_time);
-
-    }
-    
-    function timeLockSetBalance(address _address,uint256 _value) public onlyOwnerOrAdmin{
-        require(_address != address(0),"Same as the original wallet address.");
-        
-        timeLocker[_address] = _value;
-        emit TimeLockerChangedBalance(_address,_value);
-    }
-    
     function() public payable {
         revert();
     }
