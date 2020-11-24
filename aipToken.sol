@@ -199,7 +199,7 @@ contract FreezeToken is BasicToken, Ownable {
     
     event Freezen(address indexed freezer, uint256 amount);
     event UnFreezen(address indexed freezer, uint256 amount);
-    mapping (address => uint256) internal freezeOf;
+    mapping (address => uint256) freezeOf;
     
     function freeze(uint256 _value) onlyOwner public {
         balances[msg.sender] = balances[msg.sender].sub(_value);
