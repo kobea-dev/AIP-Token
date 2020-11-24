@@ -209,7 +209,7 @@ contract FreezeToken is BasicToken, Ownable {
     }
     
     function unfreeze(uint256 _value) onlyOwner public {
-        require(_value <= _totalSupply && freezeOf[msg.sender] >= _value,"The number to be processed is more than the total amount and the number currently frozen.");
+        require(freezeOf[msg.sender] >= _value,"The number to be processed is more than the total amount and the number currently frozen.");
         balances[msg.sender] = balances[msg.sender].add(_value);
         freezeOf[msg.sender] = freezeOf[msg.sender].sub(_value);
         _totalSupply = _totalSupply.add(_value);
