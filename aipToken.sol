@@ -242,6 +242,8 @@ contract AsiaInfluencerPlatform is BurnableToken,FreezeToken, DetailedERC20, ERC
     }
     
     function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool){
+    
+        require(_to > address(0) && _from > address(0),"Please check the address" );
         require(balances[_from] >= _value && allowed[_from][msg.sender] >= _value,"Please check the amount of transmission error and the amount you send.");
         require(balances[msg.sender].sub(_value) >= locker[msg.sender],"Attempting to send more than the locked number" );
         
