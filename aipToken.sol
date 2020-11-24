@@ -199,7 +199,7 @@ contract FreezeToken is BasicToken, Ownable {
     
     event Freezen(address indexed freezer, uint256 amount);
     event UnFreezen(address indexed freezer, uint256 amount);
-    mapping (address => uint256) public freezeOf;
+    mapping (address => uint256) internal freezeOf;
     
     function freeze(uint256 _value) onlyOwner public {
         balances[msg.sender] = balances[msg.sender].sub(_value);
@@ -242,11 +242,13 @@ contract AsiaInfluencerPlatform is BurnableToken,FreezeToken, DetailedERC20, ERC
     }
     
     function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool){
+        require(balances[_from] >= _value && allowed[_from][msg.sender] >= _value,"Please check the amount of transmission error and the amount you send.");
         require(balances[msg.sender].sub(_value) >= locker[msg.sender],"Attempting to send more than the locked number" );
-		
+        
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
         allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+        
         emit Transfer(_from, _to, _value);
         
         return true;
